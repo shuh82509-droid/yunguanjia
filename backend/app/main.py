@@ -662,6 +662,7 @@ def ensure_asset_schema() -> None:
         }
         for name, definition in {
             "external_status": "VARCHAR(20) DEFAULT 'pending'",
+            "external_message_id": "VARCHAR(200) DEFAULT ''",
             "external_attempts": "INTEGER DEFAULT 0",
             "external_error": "TEXT DEFAULT ''",
             "external_attempted_at": "DATETIME NULL",
@@ -1465,6 +1466,8 @@ async def long_term_work_refresh_loop() -> None:
 
 def run_feishu_notification_batch(limit: int = 12) -> int:
     """Drain the external notification outbox without blocking request actions."""
+    if os.getenv("SERVICE_NOTIFICATION_DELIVERY_MODE") == "external":
+        return 0
     cutoff = datetime.utcnow() - timedelta(minutes=5)
     with SessionLocal() as db:
         rows = db.scalars(
@@ -7108,6 +7111,39 @@ def review_asset_naming_context(
     }
 
 
+def _notify_asset_review(db, item, asset, action, decision=None):
+    """Persist reviewer and submitter notices in the business transaction."""
+    recipients = {}
+    def add(number, name, detail):
+        key = number or ('unmapped:' + name)
+        entry = recipients.setdefault(key, {'number': number, 'name': name, 'details': []})
+        if detail not in entry['details']:
+            entry['details'].append(detail)
+    label = REVIEW_ROLE_LABELS.get(decision.role_code, '') if decision else ''
+    if action in {'submitted', 'reassigned'}:
+        title = '素材已提交审核' if action == 'submitted' else '素材审核人已调整'
+        add(item.submitted_by_number, item.submitted_by_name, '你的素材已进入审核，请关注审核进度。')
+    elif action == 'rejected':
+        title = '素材审核已驳回'
+        add(item.submitted_by_number, item.submitted_by_name, label + '驳回：' + (decision.note or '请查看审核意见'))
+    elif item.status == 'approved':
+        title = '素材审核已通过'
+        add(item.submitted_by_number, item.submitted_by_name, '全部人工审核已通过，可按授权继续分发。审核通过不代表已发布。')
+    else:
+        title = label + '审核通过'
+        add(item.submitted_by_number, item.submitted_by_name, label + '审核已通过，进入下一审核环节。')
+    if item.status == 'pending':
+        db.flush()
+        pending = db.scalar(select(AssetReviewDecision).where(AssetReviewDecision.submission_id == item.id, AssetReviewDecision.status == 'pending').order_by(AssetReviewDecision.id))
+        if pending:
+            for candidate in pending.candidate_reviewers or []:
+                add(candidate.get('user_number',''), candidate.get('user_name',''), '轮到你进行' + REVIEW_ROLE_LABELS.get(pending.role_code, pending.role_code) + '审核，请预览视频后处理。')
+    for entry in recipients.values():
+        db.add(UserNotification(recipient_number=entry['number'],recipient_name=entry['name'],kind='asset_review',title=title,
+            message='\n'.join(['视频：' + asset.filename, '产品：' + asset.category, '审核版本：' + str(item.version), *entry['details']]),
+            resource_type='asset_review',resource_id=item.id))
+
+
 @app.post("/api/reviews/assets/{asset_id}/submit")
 def review_asset_submit(
     asset_id: int,
@@ -7208,6 +7244,7 @@ def review_asset_submit(
             latest.filename_snapshot = asset.filename
             latest.naming_evidence = evidence
             latest.naming_check = naming_check
+            _notify_asset_review(db, latest, asset, "reassigned")
             db.commit()
         return _review_submission_out(db, latest, asset, user)
     version = (latest.version + 1) if latest else 1
@@ -7257,6 +7294,7 @@ def review_asset_submit(
             completed_at=None if config.ai_redline_enabled else datetime.utcnow(),
         )
     )
+    _notify_asset_review(db, item, asset, "submitted")
     db.commit()
     return _review_submission_out(db, item, asset, user)
 
@@ -7424,6 +7462,8 @@ def _review_act(
     elif all(row.status == "approved" for row in decisions):
         item.status = "approved"
         item.completed_at = datetime.utcnow()
+    asset = db.get(Asset, item.asset_id)
+    _notify_asset_review(db, item, asset, decision_status, current)
     db.commit()
     asset = db.get(Asset, item.asset_id)
     return _review_submission_out(db, item, asset, user)
@@ -16162,9 +16202,10 @@ def video_request_create(payload: VideoRequestCreate, db: Session = Depends(get_
     _video_request_event(db, item, "submitted", user, {"product": item.product})
     _notify_video_request(
         db,
-        recipient_name="何雨庭",
+        recipient_name=os.getenv("VIDEO_REQUEST_ASSIGNER_NAME", "何雨庭"),
+        recipient_number=os.getenv("VIDEO_REQUEST_ASSIGNER_NUMBER", ""),
         title=f"新视频提需 · {item.product}",
-        message=f"{item.requester_name} 已提交视频制作需求，请安排制作人。",
+        message=f"{item.requester_name} 已提交视频制作需求，请安排制作人。\n需求说明：{item.description[:400]}",
         request_id=item.id,
     )
     db.commit()
@@ -16524,7 +16565,8 @@ def video_request_revision(request_id: str, payload: VideoRequestFeedback, db: S
         title=f"成片需修改 · {item.product}", message=message, request_id=item.id,
     )
     _notify_video_request(
-        db, recipient_name="何雨庭", title=f"成片返修 · {item.product}", message=message, request_id=item.id,
+        db, recipient_name=os.getenv("VIDEO_REQUEST_ASSIGNER_NAME", "何雨庭"), recipient_number=os.getenv("VIDEO_REQUEST_ASSIGNER_NUMBER", ""),
+        title=f"成片返修 · {item.product}", message=message, request_id=item.id,
     )
     db.commit()
     return _video_request_out(db, item, user)
@@ -16555,6 +16597,7 @@ def notifications_list(
             "id": item.id, "kind": item.kind, "title": item.title, "message": item.message,
             "resource_type": item.resource_type, "resource_id": item.resource_id,
             "external_status": item.external_status,
+            "external_message_id": item.external_message_id,
             "external_error": item.external_error if item.external_status == "failed" else "",
             "external_sent_at": item.external_sent_at.isoformat() + "Z" if item.external_sent_at else None,
             "read_at": item.read_at.isoformat() + "Z" if item.read_at else None,
