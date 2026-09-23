@@ -65,6 +65,33 @@ class VideoRequestWorkflowTests(unittest.TestCase):
     def user(number: str, name: str) -> dict:
         return {"number": number, "realName": name, "groupName": "品牌营销部"}
 
+    def test_create_retry_reuses_receipt_without_duplicate_work(self):
+        requester = self.user("FD-RETRY", "提需同事")
+        payload = VideoRequestCreate(
+            client_request_id="browser-retry-1",
+            product="通用",
+            description="制作一条产品展示视频",
+        )
+        with SessionLocal() as db:
+            first = video_request_create(payload, db=db, user=requester)
+            second = video_request_create(payload, db=db, user=requester)
+            self.assertEqual(second["id"], first["id"])
+            self.assertEqual(db.query(VideoRequest).count(), 1)
+            self.assertEqual(db.query(VideoRequestEvent).count(), 1)
+            self.assertEqual(db.query(UserNotification).count(), 1)
+            with self.assertRaises(HTTPException) as changed:
+                video_request_create(
+                    VideoRequestCreate(
+                        client_request_id="browser-retry-1",
+                        product="通用",
+                        description="不同的需求内容",
+                    ),
+                    db=db,
+                    user=requester,
+                )
+            self.assertEqual(changed.exception.status_code, 409)
+            self.assertEqual(db.query(VideoRequest).count(), 1)
+
     def test_assigner_full_revision_flow_notifies_people(self):
         requester = self.user("FD-REQUESTER", "提需同事")
         supervisor = self.user("FD-SUPERVISOR", "何雨庭")

@@ -18,7 +18,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from threading import BoundedSemaphore, Lock
 from typing import Literal
-from uuid import uuid4
+from uuid import uuid4, uuid5, NAMESPACE_URL
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -2026,6 +2026,10 @@ async def operation_audit_middleware(request: Request, call_next):
 
 
 _CENTRAL_AUTH_EXEMPT_PATHS = {
+    # The hub gateway uses this to establish identity for every module. The
+    # endpoint still requires OA authentication; module grants belong to the
+    # requested business API, not the shared identity lookup.
+    "/api/auth/me",
     "/api/auth/captcha",
     "/api/auth/login",
     "/api/auth/logout",
@@ -4228,6 +4232,7 @@ class ChannelsInteraction(BaseModel):
 
 
 class VideoRequestCreate(BaseModel):
+    client_request_id: str = Field(default="", max_length=80, pattern=r"^[a-zA-Z0-9_-]*$")
     product: str = Field(default="通用", min_length=1, max_length=100)
     description: str = Field(default="", max_length=10000)
     reference_url: str = Field(default="", max_length=2048)
@@ -16187,8 +16192,25 @@ def video_request_create(payload: VideoRequestCreate, db: Session = Depends(get_
     description = payload.description.strip()
     if not reference_url and not reference_videos and not reference_images and not description:
         raise HTTPException(400, "请至少填写竞对链接、上传参考视频或图片，或提供语言描述中的一项")
+    request_id = str(uuid5(NAMESPACE_URL, f"wis-video-request:{user_number(user)}:{payload.client_request_id}")) if payload.client_request_id else str(uuid4())
+    def existing_receipt():
+        existing = db.get(VideoRequest, request_id)
+        if existing is None:
+            return None
+        same = (existing.requester_number == user_number(user)
+                and existing.product == canonical_product_category(payload.product, "通用")
+                and existing.description == description and existing.reference_url == reference_url
+                and (existing.reference_videos or []) == reference_videos
+                and (existing.reference_images or []) == reference_images)
+        if not same:
+            raise HTTPException(409, "同一提交标识的内容已改变，请重新核对需求")
+        return _video_request_out(db, existing, user)
+    if payload.client_request_id:
+        receipt = existing_receipt()
+        if receipt is not None:
+            return receipt
     item = VideoRequest(
-        id=str(uuid4()),
+        id=request_id,
         product=canonical_product_category(payload.product, "通用"),
         description=description,
         reference_url=reference_url,
@@ -16211,7 +16233,15 @@ def video_request_create(payload: VideoRequestCreate, db: Session = Depends(get_
         message=f"{item.requester_name} 已提交视频制作需求，请安排制作人。\n需求说明：{item.description[:400]}",
         request_id=item.id,
     )
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        if payload.client_request_id:
+            receipt = existing_receipt()
+            if receipt is not None:
+                return receipt
+        raise
     return _video_request_out(db, item, user)
 
 
