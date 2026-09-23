@@ -2032,6 +2032,9 @@ _CENTRAL_AUTH_EXEMPT_PATHS = {
     # The provider returns without a hub session; exchange_code validates the
     # short-lived OAuth state before persisting any new authorization.
     "/api/qianchuan/oauth/callback",
+    # Tencent ADQ redirects outside the hub session too. The callback checks
+    # its short-lived authorization state before storing an operator token.
+    "/api/adq/user-authorization/callback",
     "/api/live",
     "/api/health",
     # The desktop helper exchanges a short-lived, single-use pairing code for
