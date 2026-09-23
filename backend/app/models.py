@@ -921,6 +921,7 @@ class UserNotification(Base):
     resource_type: Mapped[str] = mapped_column(String(50), default="")
     resource_id: Mapped[str] = mapped_column(String(80), default="", index=True)
     external_status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+    external_message_id: Mapped[str] = mapped_column(String(200), default="")
     external_attempts: Mapped[int] = mapped_column(Integer, default=0)
     external_error: Mapped[str] = mapped_column(Text, default="")
     external_attempted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
