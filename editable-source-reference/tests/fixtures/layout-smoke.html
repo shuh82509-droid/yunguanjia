@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WIS layout smoke test</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+    <link rel="stylesheet" href="/src/polish.css" />
+    <style>
+      body { margin: 0; }
+      .fixture-shell { max-width: 1480px; margin: 0 auto; padding: 24px; }
+      .fixture-section { margin-bottom: 24px; }
+      .fixture-icon { width: 24px; height: 24px; display: block; border: 2px solid currentColor; border-radius: 8px; }
+    </style>
+  </head>
+  <body>
+    <main class="fixture-shell">
+      <section class="fixture-section">
+        <div class="hall-primary-grid">
+          <button class="hall-primary-card source">
+            <span class="hall-primary-icon"><i class="fixture-icon"></i></span>
+            <span class="hall-primary-copy"><small>ORIGINAL ASSETS</small><strong>视频素材</strong><em>明星、KOL、KOC、自产自拍与 AI 一创等原始素材</em></span>
+            <span class="hall-primary-cta"><b>207 条</b><i>选择分类 →</i></span>
+          </button>
+          <button class="hall-primary-card remix">
+            <span class="hall-primary-icon"><i class="fixture-icon"></i></span>
+            <span class="hall-primary-copy"><small>REMIX OUTPUTS</small><strong>混剪成片</strong><em>按产品集中查找已完成剪辑、可复用和投放的成片</em></span>
+            <span class="hall-primary-cta"><b>79,088 条</b><i>选择产品 →</i></span>
+          </button>
+        </div>
+      </section>
+
+      <section class="fixture-section">
+        <div class="hall-quick-grid" aria-label="常用素材入口">
+          <button class="hall-quick-card mine">
+            <span class="hall-quick-icon"><i class="fixture-icon"></i></span>
+            <span><small>MY UPLOADS</small><strong>我的上传</strong><em>快速找到自己上传与剪映导出的素材</em></span>
+            <span>→</span>
+          </button>
+          <button class="hall-quick-card favorite-card">
+            <span class="hall-quick-icon"><i class="fixture-icon"></i></span>
+            <span><small>FAVORITES</small><strong>我的收藏</strong><em>5 条收藏，仅自己可见</em></span>
+            <span>→</span>
+          </button>
+          <button class="hall-quick-card hits">
+            <span class="hall-quick-icon"><i class="fixture-icon"></i></span>
+            <span><small>TOP PERFORMERS</small><strong>爆款素材</strong><em>1 条成交额超过 5 万</em></span>
+            <span>→</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="library fixture-section">
+        <header class="library-heading">
+          <div><span class="eyebrow">REMIX LIBRARY</span><h2>黑晶面膜</h2><p>已完成剪辑的成片，可继续按产品、状态和成交表现筛选。</p></div>
+          <div class="library-actions">
+            <button class="secondary-button">批量推送</button>
+            <button class="secondary-button">批量删除</button>
+            <button class="primary-button">上传素材</button>
+          </div>
+        </header>
+        <div class="filters">
+          <label class="search-box"><span>⌕</span><input placeholder="搜索文件名、产品、上传同事或标签…" /><kbd>搜索</kbd></label>
+          <select><option>全部收录方式</option></select>
+          <select><option>全部混剪成片分类</option></select>
+          <select><option>全部产品</option></select>
+          <select><option>全部类型</option></select>
+          <select><option>全部状态</option></select>
+          <select><option>最近收录</option></select>
+          <button class="filter-button">我的上传</button>
+          <button class="filter-button">收藏 <span>1</span></button>
+        </div>
+      </section>
+
+      <section class="qc-records-card fixture-section">
+        <header class="qc-records-toolbar">
+          <div><strong>推送记录</strong><small>共 2512 条，全员回流只读总览</small></div>
+          <div class="qc-records-controls">
+            <label class="qc-search"><input placeholder="搜索发起人、素材、账户、计划、视频 ID 或错误" /></label>
+            <select><option>全部状态</option></select>
+            <select><option>每页 10 条</option></select>
+            <button>收起记录</button>
+          </div>
+        </header>
+      </section>
+
+      <section class="access-grant-box fixture-section">
+        <div class="access-search-row">
+          <label><input placeholder="输入同事完整 OA 姓名，搜索或授权" /></label>
+          <input placeholder="部门备注（选填）" />
+          <button class="primary-button">开通权限</button>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

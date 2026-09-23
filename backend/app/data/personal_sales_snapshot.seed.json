@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "status": "",
+  "generatedAt": "",
+  "meta": {
+    "periodStart": "",
+    "periodEnd": "",
+    "completeThroughDate": "",
+    "qianchuanCutoffAt": "",
+    "videoHaitunCutoffAt": "",
+    "videoAdqCutoffDate": "",
+    "schedule": "",
+    "sourceLabel": "",
+    "metricDefinition": {
+      "qianchuan": "",
+      "videoHaitun": "",
+      "videoAdq": ""
+    },
+    "peopleCount": 0,
+    "cappedQueries": [],
+    "sourceFreshness": {
+      "QIANCHUAN_STANDARD": "",
+      "QIANCHUAN_CHENGFANG": "",
+      "HAITUN": "",
+      "ADQ": ""
+    }
+  },
+  "quality": {
+    "totalSourceGmvYuan": 0,
+    "mappedGmvYuan": 0,
+    "unmappedGmvYuan": 0,
+    "conflictGmvYuan": 0,
+    "mappedGmvRate": 0,
+    "sourceMaterialCount": 0,
+    "mappedMaterialCount": 0,
+    "unmappedMaterialCount": 0,
+    "conflictMaterialCount": 0
+  },
+  "sourceTotals": [],
+  "rankings": [],
+  "conflictMaterials": []
+}

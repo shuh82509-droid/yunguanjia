@@ -1,0 +1,14 @@
+# Installed dependencies and generated output
+node_modules/
+build/
+dist/
+.next/
+.wrangler/
+coverage/
+
+# Local configuration and diagnostics
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
